@@ -1,12 +1,19 @@
 //! tests/health_check.rs
 use std::net::TcpListener;
+use sqlx::{ PgConnection, Connection };
+use email_newsletter::{ 
+    self, 
+    startup,
+    configuration::{ get_configuration }
+};
 
 fn spawn_app() -> String {
+    // Using port 0 binds to a random free port.
     let listener = TcpListener::bind("127.0.0.1:0")
     .expect("Failed to bind random port");
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
-    let server = email_newsletter::run(listener).expect("Failed to bind address");
+    let server = startup::run(listener).expect("Failed to bind address");
     let _ = tokio::spawn(server);
     // We return the application address to the caller!
     format!("http://127.0.0.1:{}", port)
@@ -36,6 +43,12 @@ async fn test_health_check() {
 async fn test_subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app_address = spawn_app();
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let connection_string = configuration.database.connection_string();
+    let connection = PgConnection::connect(&connection_string)
+            .await
+            .expect("Failed to connect to Postgres.");
+
     let client = reqwest::Client::new();
     // Act
     let body = "name=john%20doe&email=john_doe%40gmail.com";
