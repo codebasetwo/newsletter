@@ -10,6 +10,7 @@ path = "src/lib.rs"
 actix-web = "4"
 config = "0.15.22"
 serde = { version = "1", features = ["derive"]}
+chrono = "0.4.44"
 
 [dependencies.sqlx]
 version = "0.8"
@@ -22,6 +23,13 @@ features = [
     "uuid",
     "chrono",
     "migrate"
+]
+
+[dependencies.uuid]
+version = "1.23.0"
+# Lets you generate random UUIDs
+features = [
+    "v4",
 ]
 
 [dev-dependencies]
