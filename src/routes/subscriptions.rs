@@ -1,5 +1,5 @@
 use actix_web::{ web, post, HttpResponse };
-use sqlx::PgConnection;
+use sqlx::PgPool;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -11,11 +11,11 @@ struct FormData {
 
 
 #[post("/subscriptions")]
-async fn subscribe(
-    _form: web::Form<FormData>, 
-    connection: web::Data<PgConnection>
+pub async fn subscribe(
+    form: web::Form<FormData>, 
+    pool: web::Data<PgPool>
 ) -> HttpResponse {
-    sqlx::query!(
+    match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
         VALUES ($1, $2, $3, $4)
@@ -25,9 +25,14 @@ async fn subscribe(
         form.name,
         Utc::now()
     )
-    // We use `get_ref` to get an immutable reference to the `PgConnection`
+    // We use `get_ref` to get an immutable reference to the `PgPool`
     // wrapped by `web::Data`.
-    .execute(connection.get_ref())
-    .await;
-    HttpResponse::Ok().finish()
+    .execute(pool.get_ref())
+    .await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => {
+            println!("Failed to execute query: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
