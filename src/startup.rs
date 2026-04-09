@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 use actix_web::{
     web,
+    middleware:: { Logger },
     dev::{ Server },
     App,
     HttpServer,
@@ -16,6 +17,7 @@ pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Er
     // move values into closures
     let server = HttpServer::new(move || {
             App::new()
+            .wrap(Logger::default())
             .service(subscribe)
             .service(health_check)
             .route("/{name}", web::get().to(greet))

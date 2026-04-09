@@ -1,11 +1,15 @@
 use email_newsletter::startup::run;
 use email_newsletter::configuration::get_configuration;
+use email_newsletter::telemetry::{ init_subscriber, get_subscriber };
 use actix_web;
 use std::net::TcpListener;
 use sqlx:: { PgPool };
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()>{
+
+    let subscriber = get_subscriber("email_newsletter".into(), "info".into());
+    init_subscriber(subscriber);
 
     // Read configuration and panic if there is an issue
     let configuration = get_configuration().expect("Failed to read configurations");
