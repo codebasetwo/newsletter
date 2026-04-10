@@ -8,7 +8,7 @@ use sqlx:: { PgPool };
 #[actix_web::main]
 async fn main() -> std::io::Result<()>{
 
-    let subscriber = get_subscriber("email_newsletter".into(), "info".into());
+    let subscriber = get_subscriber("email_newsletter".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
     // Read configuration and panic if there is an issue
