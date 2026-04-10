@@ -4,6 +4,7 @@ use email_newsletter::telemetry::{ init_subscriber, get_subscriber };
 use actix_web;
 use std::net::TcpListener;
 use sqlx:: { PgPool };
+use secrecy::ExposeSecret;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()>{
@@ -13,7 +14,7 @@ async fn main() -> std::io::Result<()>{
 
     // Read configuration and panic if there is an issue
     let configuration = get_configuration().expect("Failed to read configurations");
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
+    let connection_pool = PgPool::connect(&configuration.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to postgres");
     let listener = TcpListener::bind(
