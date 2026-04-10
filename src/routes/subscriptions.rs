@@ -2,6 +2,7 @@ use actix_web::{ web, post, HttpResponse };
 use sqlx::PgPool;
 use chrono::Utc;
 use uuid::Uuid;
+use crate::domain::{ NewSubscriber, SubscriberName };
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -24,7 +25,19 @@ pub async fn subscribe(
     pool: web::Data<PgPool>
 ) -> HttpResponse {
 
-    match insert_subscriber(&pool, &form).await
+    let name = match SubscriberName::parse(form.0.name) {
+        Ok(name) => name,
+        // Return early if the name is invalid, with a 400
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+    // `web::Form` is a wrapper around `FormData`
+    // `form.0` gives us access to the underlying `FormData`
+    let new_subscriber = NewSubscriber {
+        email: form.0.email,
+        name,
+    };
+
+    match insert_subscriber(&pool, &new_subscriber).await
     {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().finish()
@@ -33,11 +46,11 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Saving new subscriber details in the database",
-    skip(form, pool)
+    skip(new_subscriber, pool)
 )]
 pub async fn insert_subscriber(
     pool: &PgPool,
-    form: &FormData,
+    new_subscriber: &NewSubscriber,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
@@ -45,8 +58,8 @@ pub async fn insert_subscriber(
     VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subscriber.email,
+        new_subscriber.name.as_ref(),
         Utc::now()
     )
     // We use `as_ref` to get an immutable reference to the `PgPool`
@@ -58,7 +71,6 @@ pub async fn insert_subscriber(
         e
     // Using the `?` operator to return early
     // if the function failed, returning a sqlx::Error
-    // We will talk about error handling in depth later!
     })?;
     Ok(())
 }
