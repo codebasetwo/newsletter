@@ -10,12 +10,6 @@ pub struct FormData {
     name: String
 }
 
-pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
-    let name = SubscriberName::parse(form.name)?;
-    let email = SubscriberEmail::parse(form.email)?;
-    Ok(NewSubscriber { email, name })
-}
-
 impl TryFrom<FormData> for NewSubscriber {
     type Error = String;
     fn try_from(value: FormData) -> Result<Self, Self::Error> {
@@ -39,7 +33,8 @@ pub async fn subscribe(
     pool: web::Data<PgPool>
 ) -> HttpResponse {
 
-   let new_subscriber = match parse_subscriber(form.0) {
+    // try into implemented automatically if you use the tryfrom trait
+   let new_subscriber = match form.0.try_into() {
             Ok(subscriber) => subscriber,
             Err(_) => return HttpResponse::BadRequest().finish(),
         };
