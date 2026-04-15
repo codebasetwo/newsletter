@@ -24,6 +24,8 @@ unicode-segmentation = "1"
 claim = "0.5"
 validator = "0.14"
 rand = { version = "0.8", features=["std_rng"] }
+base64 = "0.13"
+argon2 = { version = "0.3", features = ["std"] }
 
 [dependencies.sqlx]
 version = "0.8"

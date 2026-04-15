@@ -10,6 +10,9 @@ use email_newsletter::{
 use uuid::Uuid;
 use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
+use sha3::Digest;
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
 
 // Ensure that the `tracing` stack is only initialised once using `once_cell`
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -30,6 +33,55 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     address: String,
     db_pool : PgPool,
+    test_user: TestUser
+}
+
+pub struct TestUser {
+    pub user_id: Uuid,
+    pub username: String,
+    pub password: String
+}
+
+impl TestUser {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string()
+        }
+    }
+
+    async fn store(&self, pool: &PgPool) {
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
+        sqlx::query!(
+            "INSERT INTO users (user_id, username, password_hash)
+            VALUES ($1, $2, $3)",
+            self.user_id,
+            self.username,
+            password_hash,
+        )
+        .execute(pool)
+        .await
+        .expect("Failed to store test user.");
+    }
+}
+
+impl TestApp {
+// [...]
+    pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        let (username, password) = self.test_user().await;
+        reqwest::Client::new()
+            .post(&format!("{}/newsletters", &self.address))
+            .basic_auth(&self.test_user.username, Some(&self.test_user.password))
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
 }
 
 async fn spawn_app() -> TestApp {
@@ -50,10 +102,13 @@ async fn spawn_app() -> TestApp {
     let server = startup::run(listener, connection_pool.clone())
         .expect("Failed to bind address");
     let _ = tokio::spawn(server);
-    TestApp {
+    let test_app = TestApp {
         address,
-        db_pool: connection_pool
-    }
+        db_pool: connection_pool,
+        test_user: TestUser::generate(),
+    };
+    test_app.test_user.store(&test_app.db_pool).await;
+    test_app
     // We return the application address to the caller!
 }
 
