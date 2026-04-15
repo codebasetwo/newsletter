@@ -5,7 +5,7 @@ use actix_web::{
     App,
     HttpServer,
 };
-use crate::routes::{ health_check, subscribe, greet };
+use crate::routes::{ confirm, publish_newsletter, health_check, subscribe, greet };
 use sqlx::{ PgPool };
 use tracing_actix_web::TracingLogger;
 use crate::email_client::EmailClient;
@@ -24,8 +24,10 @@ pub fn run(
     let server = HttpServer::new(move || {
             App::new()
             .wrap(TracingLogger::default())
+            .service(publish_newsletter)
             .service(subscribe)
             .service(health_check)
+            .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/{name}", web::get().to(greet))
             .route("/", web::get().to(greet))
             // Get a pointer copy and attach it to the application state
